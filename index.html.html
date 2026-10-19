@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="ko" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduMind AI - 교안 요약 & 퀴즈 메이커</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            300: '#a5b4fc',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Pretendard:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- PDF.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body {
+            font-family: 'Pretendard', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+        }
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .dark .glass-panel {
+            background: rgba(17, 24, 39, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(156, 163, 175, 0.4);
+            border-radius: 9999px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(156, 163, 175, 0.7);
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-screen flex flex-col transition-colors duration-300 selection:bg-brand-500 selection:text-white">
+
+    <!-- Navbar -->
+    <header class="sticky top-0 z-40 border-b border-slate-200/80 dark:border-slate-800/80 glass-panel transition-colors">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-indigo-500 to-purple-500 flex items-center justify-center text-white shadow-lg shadow-brand-500/25">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                    </svg>
+                </div>
+                <div>
+                    <span class="font-extrabold text-lg bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 dark:from-brand-400 dark:via-indigo-400 dark:to-purple-400 bg-clip-text text-transparent">EduMind AI</span>
+                    <span class="hidden sm:inline-block ml-2 px-2 py-0.5 text-xs font-semibold rounded-full bg-brand-100 text-brand-700 dark:bg-brand-900/50 dark:text-brand-300">교안 요약 & Quiz Studio</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- API Key Status Indicator -->
+                <button onclick="openSettingsModal()" id="api-status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50 hover:shadow-sm">
+                    <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse" id="api-status-dot"></span>
+                    <span id="api-status-text">API 키 필요</span>
+                </button>
+
+                <!-- Theme Toggle -->
+                <button onclick="toggleDarkMode()" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    <svg id="theme-icon-dark" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                    </svg>
+                    <svg id="theme-icon-light" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                    </svg>
+                </button>
+
+                <!-- Settings Modal Trigger -->
+                <button onclick="openSettingsModal()" class="p-2 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+        <!-- Hero & Upload Section -->
+        <section class="relative overflow-hidden rounded-3xl bg-gradient-to-b from-indigo-900/5 via-slate-900/0 to-purple-900/5 dark:from-indigo-950/40 dark:to-purple-950/20 border border-slate-200/80 dark:border-slate-800 p-6 sm:p-10 shadow-sm">
+            <div class="max-w-3xl mx-auto text-center space-y-3 mb-8">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-50 text-brand-600 dark:bg-brand-950/80 dark:text-brand-300 border border-brand-200/60 dark:border-brand-800/60">
+                    ✨ AI 스마트 러닝 파트너
+                </span>
+                <h1 class="text-2xl sm:text-4xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+                    강의 교안을 PDF로 올리면 <br class="hidden sm:inline">
+                    <span class="bg-gradient-to-r from-brand-600 to-purple-600 dark:from-brand-400 dark:to-purple-400 bg-clip-text text-transparent">핵심 요약과 예상 퀴즈 10문항</span>을 자동 생성
+                </h1>
+                <p class="text-sm sm:text-base text-slate-600 dark:text-slate-400 leading-relaxed">
+                    복잡하고 방대한 PDF 자료에서 주요 개념만 쏙쏙 정리하고, 학습 상태를 자가 점검할 수 있는 객관식 테스트를 10초 만에 만나보세요.
+                </p>
+            </div>
+
+            <!-- Drag & Drop Upload Zone -->
+            <div class="max-w-2xl mx-auto">
+                <div id="drop-zone" 
+                     class="group relative border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-brand-500 dark:hover:border-brand-500 rounded-2xl p-8 sm:p-10 text-center bg-white/70 dark:bg-slate-900/70 hover:bg-brand-50/30 dark:hover:bg-brand-950/20 transition-all duration-300 cursor-pointer shadow-sm hover:shadow-md"
+                     onclick="document.getElementById('file-input').click()"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)"
+                     ondrop="handleFileDrop(event)">
+                    
+                    <input type="file" id="file-input" accept="application/pdf" class="hidden" onchange="handleFileSelect(event)">
+                    
+                    <div id="upload-idle-state" class="space-y-4">
+                        <div class="w-16 h-16 mx-auto rounded-2xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-base font-semibold text-slate-800 dark:text-slate-200">
+                                PDF 파일 드래그 & 드롭 또는 <span class="text-brand-600 dark:text-brand-400 underline underline-offset-4">내 컴퓨터에서 찾기</span>
+                            </p>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">강의록, 교안, 논문, 세미나 발표 자료 (PDF 서식 지원)</p>
+                        </div>
+                    </div>
+
+                    <!-- File Active Info (Hidden by default) -->
+                    <div id="upload-active-state" class="hidden space-y-4">
+                        <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <p id="file-name" class="font-bold text-slate-900 dark:text-white text-base truncate max-w-md mx-auto"></p>
+                            <p id="file-meta" class="text-xs text-slate-500 dark:text-slate-400 mt-1"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <div class="mt-4 flex justify-center">
+                    <button id="generate-btn" 
+                            onclick="startAnalysis()" 
+                            disabled 
+                            class="w-full sm:w-auto px-8 py-3.5 rounded-xl bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 text-white font-semibold shadow-lg shadow-brand-500/25 hover:shadow-brand-500/40 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all flex items-center justify-center gap-2">
+                        <span>✨ AI 교안 분석 및 퀴즈 생성 시작</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Loading Step Indicator (Hidden by default) -->
+        <section id="loading-section" class="hidden max-w-2xl mx-auto bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm space-y-6">
+            <div class="flex items-center gap-4">
+                <div class="relative w-12 h-12 flex items-center justify-center">
+                    <div class="absolute inset-0 rounded-full border-4 border-brand-200 dark:border-brand-900 opacity-30"></div>
+                    <div class="absolute inset-0 rounded-full border-4 border-brand-600 border-t-transparent animate-spin"></div>
+                    <span class="text-sm">⚡</span>
+                </div>
+                <div>
+                    <h3 id="loading-title" class="font-bold text-slate-900 dark:text-white text-base">교안을 분석하고 있습니다</h3>
+                    <p id="loading-desc" class="text-xs text-slate-500 dark:text-slate-400">잠시만 기다려주세요...</p>
+                </div>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="space-y-2">
+                <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    <span id="progress-step-text">PDF 텍스트 추출 중...</span>
+                    <span id="progress-percent">0%</span>
+                </div>
+                <div class="w-full h-2.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div id="progress-bar-inner" class="h-full bg-gradient-to-r from-brand-500 to-purple-500 rounded-full transition-all duration-300 w-0"></div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-xs text-slate-500 dark:text-slate-400 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-1.5" id="step-1-badge">
+                    <span class="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700"></span>
+                    <span>1. PDF 텍스트 파싱</span>
+                </div>
+                <div class="flex items-center gap-1.5" id="step-2-badge">
+                    <span class="w-2 h-2 rounded-full bg-slate-300 dark:bg-slate-700"></span>
+                    <span>2. Gemini AI 요약 및 퀴즈 생성</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Dashboard View (Tabs & Content) -->
+        <section id="dashboard-section" class="hidden space-y-6">
+            <!-- Navigation Tabs & Tools Header -->
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-4">
+                <div class="flex items-center gap-2 p-1 bg-slate-200/60 dark:bg-slate-900 rounded-2xl w-fit">
+                    <button id="tab-summary-btn" onclick="switchTab('summary')" class="px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center gap-2 bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm">
+                        <span>📚 교안 핵심 요약</span>
+                    </button>
+                    <button id="tab-quiz-btn" onclick="switchTab('quiz')" class="px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white">
+                        <span>📝 AI 예상 퀴즈</span>
+                        <span id="quiz-count-badge" class="px-2 py-0.5 text-xs rounded-full bg-brand-100 dark:bg-brand-900/60 text-brand-700 dark:text-brand-300">10문항</span>
+                    </button>
+                </div>
+
+                <div class="flex items-center gap-2">
+                    <button onclick="copySummary()" id="copy-btn" class="px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                        </svg>
+                        <span>요약 복사</span>
+                    </button>
+                    <button onclick="downloadMarkdown()" class="px-3.5 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                        </svg>
+                        <span>다운로드 (.txt)</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tab 1: Key Summary Content -->
+            <div id="tab-summary-content" class="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-10 shadow-sm space-y-6">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                    <h2 class="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <span>💡 텍스트 요약 및 구조화 노트</span>
+                    </h2>
+                    <span class="text-xs text-slate-400" id="summary-meta-date">AI 생성 완료</span>
+                </div>
+                <div id="summary-body" class="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 text-sm sm:text-base leading-relaxed space-y-4">
+                    <!-- Dynamic Summary Text Insertion -->
+                </div>
+            </div>
+
+            <!-- Tab 2: Interactive Quiz Content -->
+            <div id="tab-quiz-content" class="hidden space-y-6">
+                <!-- Score Bar Dashboard -->
+                <div id="quiz-score-card" class="bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 text-white rounded-3xl p-6 shadow-md flex flex-col sm:flex-row items-center justify-between gap-6">
+                    <div class="space-y-1 text-center sm:text-left">
+                        <span class="text-xs uppercase tracking-wider text-brand-200 font-semibold">Self-Assessment Test</span>
+                        <h3 class="text-xl font-extrabold">교안 기반 예상 테스트 (10문항)</h3>
+                        <p class="text-xs text-brand-100">모든 문항을 선택한 후 하단의 '채점하기' 버튼을 눌러 점수를 확인하세요.</p>
+                    </div>
+                    <div class="flex items-center gap-4 bg-white/10 backdrop-blur-md px-6 py-3 rounded-2xl border border-white/20">
+                        <div class="text-center">
+                            <span class="block text-2xl font-black" id="score-text">0 / 10</span>
+                            <span class="text-[10px] text-brand-200 font-medium">최종 점수</span>
+                        </div>
+                        <div class="h-8 w-px bg-white/20"></div>
+                        <div class="text-center">
+                            <span class="block text-2xl font-black" id="percent-text">0%</span>
+                            <span class="text-[10px] text-brand-200 font-medium">정답률</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quiz Questions List -->
+                <div id="quiz-list" class="space-y-6">
+                    <!-- Dynamic Quiz Render -->
+                </div>
+
+                <!-- Submit Button Container -->
+                <div class="flex justify-center pt-4">
+                    <button id="submit-quiz-btn" onclick="gradeQuiz()" class="px-10 py-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-base shadow-lg shadow-emerald-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span>퀴즈 정답 제출 및 채점</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Settings / API Key Modal -->
+    <div id="settings-modal" class="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm hidden flex items-center justify-center p-4 transition-opacity duration-300">
+        <div class="bg-white dark:bg-slate-900 rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6 transform transition-all">
+            <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+                <div class="flex items-center gap-2">
+                    <span class="p-2 rounded-xl bg-brand-50 dark:bg-brand-950/80 text-brand-600 dark:text-brand-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 0121 9z"></path>
+                        </svg>
+                    </span>
+                    <h3 class="text-lg font-bold text-slate-900 dark:text-white">Gemini API 키 설정</h3>
+                </div>
+                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="space-y-4 text-sm text-slate-600 dark:text-slate-400">
+                <p>Google AI Studio에서 발급받은 **Gemini API Key**를 입력해 주세요. 키는 외부 서버로 전달되지 않고 브라우저 LocalStorage에만 저장됩니다.</p>
+                <div class="space-y-2">
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Gemini API Key</label>
+                    <input type="password" id="api-key-input" placeholder="AIzaSy..." class="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition">
+                </div>
+                <p class="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1">
+                    <span>💡 API 키가 없으신가요?</span>
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="text-brand-600 dark:text-brand-400 underline hover:text-brand-700">Google AI Studio에서 무료 발급</a>
+                </p>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="closeSettingsModal()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition">취소</button>
+                <button onclick="saveApiKey()" class="px-5 py-2.5 rounded-xl text-sm font-semibold bg-brand-600 hover:bg-brand-700 text-white shadow-md shadow-brand-600/20 transition">저장하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Script Logic -->
+    <script>
+        // Global State Variables
+        let extractedPdfText = "";
+        let pdfMeta = { name: "", pages: 0, chars: 0 };
+        let generatedData = null; // { summary: "", quiz: [...] }
+        let userAnswers = {};
+
+        // On Load Initializations
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            checkApiKey();
+        });
+
+        // Dark Mode Logic
+        function initTheme() {
+            if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+                document.getElementById('theme-icon-dark').classList.remove('hidden');
+                document.getElementById('theme-icon-light').classList.add('hidden');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.getElementById('theme-icon-light').classList.remove('hidden');
+                document.getElementById('theme-icon-dark').classList.add('hidden');
+            }
+        }
+
+        function toggleDarkMode() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+                document.getElementById('theme-icon-light').classList.remove('hidden');
+                document.getElementById('theme-icon-dark').classList.add('hidden');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+                document.getElementById('theme-icon-dark').classList.remove('hidden');
+                document.getElementById('theme-icon-light').classList.add('hidden');
+            }
+        }
+
+        // API Key Management
+        function checkApiKey() {
+            const key = localStorage.getItem('gemini_api_key');
+            const badge = document.getElementById('api-status-badge');
+            const dot = document.getElementById('api-status-dot');
+            const text = document.getElementById('api-status-text');
+
+            if (key && key.trim().length > 0) {
+                badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800/50 hover:shadow-sm";
+                dot.className = "w-2 h-2 rounded-full bg-emerald-500";
+                text.innerText = "API 키 등록됨";
+            } else {
+                badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all duration-200 bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800/50 hover:shadow-sm";
+                dot.className = "w-2 h-2 rounded-full bg-amber-500 animate-pulse";
+                text.innerText = "API 키 필요";
+            }
+        }
+
+        function openSettingsModal() {
+            document.getElementById('api-key-input').value = localStorage.getItem('gemini_api_key') || '';
+            document.getElementById('settings-modal').classList.remove('hidden');
+        }
+
+        function closeSettingsModal() {
+            document.getElementById('settings-modal').classList.add('hidden');
+        }
+
+        function saveApiKey() {
+            const key = document.getElementById('api-key-input').value.trim();
+            if (!key) {
+                alert('API 키를 입력해주세요.');
+                return;
+            }
+            localStorage.setItem('gemini_api_key', key);
+            checkApiKey();
+            closeSettingsModal();
+        }
+
+        // File Drag & Drop Handlers
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.getElementById('drop-zone').classList.add('border-brand-500', 'bg-brand-50/50');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.getElementById('drop-zone').classList.remove('border-brand-500', 'bg-brand-50/50');
+        }
+
+        function handleFileDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.getElementById('drop-zone').classList.remove('border-brand-500', 'bg-brand-50/50');
+            const files = e.dataTransfer.files;
+            if (files && files.length > 0) {
+                if (files[0].type === 'application/pdf') {
+                    processPdfFile(files[0]);
+                } else {
+                    alert('PDF 파일만 업로드할 수 있습니다.');
+                }
+            }
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            if (files && files.length > 0) {
+                processPdfFile(files[0]);
+            }
+        }
+
+        // Extract Text via PDF.js
+        async function processPdfFile(file) {
+            pdfMeta.name = file.name;
+            document.getElementById('upload-idle-state').classList.add('hidden');
+            document.getElementById('upload-active-state').classList.remove('hidden');
+            document.getElementById('file-name').innerText = file.name;
+            document.getElementById('file-meta').innerText = "PDF 파일 분석 준비 중...";
+
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                pdfMeta.pages = pdf.numPages;
+
+                let fullText = "";
+                for (let i = 1; i <= pdf.numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += `\n--- [페이지 ${i}] ---\n` + pageText;
+                }
+
+                extractedPdfText = fullText.trim();
+                pdfMeta.chars = extractedPdfText.length;
+
+                document.getElementById('file-meta').innerText = `총 ${pdfMeta.pages}페이지 · 약 ${pdfMeta.chars.toLocaleString()}자 추출 완료`;
+                document.getElementById('generate-btn').removeAttribute('disabled');
+
+            } catch (err) {
+                console.error("PDF Read Error:", err);
+                alert("PDF 파일을 읽는 중 오류가 발생했습니다. 올바른 파일인지 확인해주세요.");
+                document.getElementById('upload-active-state').classList.add('hidden');
+                document.getElementById('upload-idle-state').classList.remove('hidden');
+            }
+        }
+
+        // Start Gemini Analysis Call
+        async function startAnalysis() {
+            const apiKey = localStorage.getItem('gemini_api_key');
+            if (!apiKey) {
+                alert('Gemini API 키가 필요합니다. 상단 배너 또는 설정 버튼을 눌러 API 키를 저장해주세요.');
+                openSettingsModal();
+                return;
+            }
+
+            if (!extractedPdfText) {
+                alert('PDF 파일이 아직 분석되지 않았습니다.');
+                return;
+            }
+
+            // Show Loading Section & Update UI
+            document.getElementById('loading-section').classList.remove('hidden');
+            document.getElementById('dashboard-section').classList.add('hidden');
+            document.getElementById('generate-btn').setAttribute('disabled', 'true');
+
+            updateProgress(30, "PDF 데이터 정제 및 프롬프트 생성 중...", 1);
+
+            const prompt = `
+당신은 최고의 교육 공학자이자 학습 설계자입니다. 제공된 교안 텍스트를 바탕으로 핵심 요약과 4지선다형 객관식 예상 퀴즈 10문항을 작성해야 합니다.
+
+반드시 아래 요구사항을 정확하게 준수하여 유효한 단일 JSON 객체 형태로만 응답해 주세요. (추가 설명글이나 불필요한 서문 없이 JSON만 출력):
+
+[JSON Schema 및 요구사항]
+{
+  "summary": "교안 전체의 핵심 내용을 체계적으로 요약한 텍스트. 주요 개념, 세부 특징, 결론 등을 가독성 높게 작성. (줄바꿈 및 불릿 포인트 포함 가능)",
+  "quiz": [
+    {
+      "id": 1,
+      "question": "교안 내용에 근거한 명확한 문제 질문",
+      "options": ["보기 1", "보기 2", "보기 3", "보기 4"],
+      "answer": "정답과 토씨 하나 틀리지 않고 일치하는 보기 문자열 (예: 보기 1)",
+      "explanation": "해당 정답이 왜 옳고 오답이 왜 틀린지 친절한 해설"
+    }
+  ]
+}
+
+- quiz 배열에는 정확히 10개의 문제가 들어가야 합니다.
+- 각 문제의 options에는 정확히 4개의 보기가 들어가야 합니다.
+- answer의 값은 options 항목에 들어간 문자열 중 하나와 완벽하게 일치해야 합니다.
+
+[교안 원문 내용]
+${extractedPdfText.substring(0, 35000)}
+            `;
+
+            try {
+                updateProgress(60, "Gemini AI가 핵심 요약 및 10개 퀴즈를 생성하는 중...", 2);
+
+                // Call Gemini API (gemini-3-flash-preview)
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            responseMimeType: "application/json"
+                        }
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorJson = await response.json();
+                    throw new Error(errorJson.error?.message || "Gemini API 응답 오류");
+                }
+
+                const result = await response.json();
+                const rawJsonText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (!rawJsonText) {
+                    throw new Error("AI 응답에서 데이터를 추출할 수 없습니다.");
+                }
+
+                generatedData = JSON.parse(rawJsonText);
+                updateProgress(100, "분석 완료! 결과를 화면에 구성 중...", 2);
+
+                setTimeout(() => {
+                    renderDashboardData();
+                    document.getElementById('loading-section').classList.add('hidden');
+                    document.getElementById('dashboard-section').classList.remove('hidden');
+                    document.getElementById('generate-btn').removeAttribute('disabled');
+                    document.getElementById('dashboard-section').scrollIntoView({ behavior: 'smooth' });
+                }, 500);
+
+            } catch (err) {
+                console.error("Analysis Failure:", err);
+                alert("AI 요약 및 퀴즈 생성에 실패하였습니다: " + err.message);
+                document.getElementById('loading-section').classList.add('hidden');
+                document.getElementById('generate-btn').removeAttribute('disabled');
+            }
+        }
+
+        // Progress UI Helper
+        function updateProgress(percent, text, step) {
+            document.getElementById('progress-percent').innerText = `${percent}%`;
+            document.getElementById('progress-bar-inner').style.width = `${percent}%`;
+            document.getElementById('progress-step-text').innerText = text;
+
+            if (step >= 1) {
+                document.getElementById('step-1-badge').className = "flex items-center gap-1.5 font-medium text-brand-600 dark:text-brand-400";
+            }
+            if (step >= 2) {
+                document.getElementById('step-2-badge').className = "flex items-center gap-1.5 font-medium text-purple-600 dark:text-purple-400";
+            }
+        }
+
+        // Render Generated Data to UI
+        function renderDashboardData() {
+            if (!generatedData) return;
+
+            // 1. Summary Render
+            const summaryContainer = document.getElementById('summary-body');
+            const formattedSummary = generatedData.summary
+                .replace(/\n\n/g, '<br><br>')
+                .replace(/\n-/g, '<br>• ')
+                .replace(/\n\*/g, '<br>• ');
+            summaryContainer.innerHTML = formattedSummary;
+            document.getElementById('summary-meta-date').innerText = `${pdfMeta.name} 기준 AI 생성`;
+
+            // 2. Quiz Render
+            const quizListContainer = document.getElementById('quiz-list');
+            quizListContainer.innerHTML = '';
+            userAnswers = {};
+
+            generatedData.quiz.forEach((q, idx) => {
+                const questionBlock = document.createElement('div');
+                questionBlock.className = "bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-sm space-y-4 transition-all duration-300";
+                questionBlock.id = `quiz-card-${idx}`;
+
+                let optionsHtml = '';
+                q.options.forEach((opt, optIdx) => {
+                    optionsHtml += `
+                        <label onclick="selectOption(${idx}, '${escapeHtml(opt)}')" 
+                               id="option-label-${idx}-${optIdx}" 
+                               class="group flex items-center gap-3 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-brand-300 dark:hover:border-brand-700 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-brand-50/30 dark:hover:bg-brand-950/20 cursor-pointer transition-all duration-200 text-sm font-medium text-slate-800 dark:text-slate-200">
+                            <input type="radio" name="quiz-opt-${idx}" value="${escapeHtml(opt)}" class="w-4 h-4 text-brand-600 focus:ring-brand-500 border-slate-300 dark:border-slate-700">
+                            <span class="flex-1">${opt}</span>
+                        </label>
+                    `;
+                });
+
+                questionBlock.innerHTML = `
+                    <div class="flex items-start gap-3">
+                        <span class="flex-shrink-0 w-8 h-8 rounded-xl bg-brand-100 dark:bg-brand-950/80 text-brand-700 dark:text-brand-300 font-bold text-sm flex items-center justify-center">
+                            Q${idx + 1}
+                        </span>
+                        <h4 class="text-base sm:text-lg font-bold text-slate-900 dark:text-white pt-1 leading-snug">
+                            ${q.question}
+                        </h4>
+                    </div>
+
+                    <div class="space-y-2.5 pt-2">
+                        ${optionsHtml}
+                    </div>
+
+                    <!-- Explanation Container (Hidden until graded) -->
+                    <div id="explanation-box-${idx}" class="hidden mt-4 p-4 rounded-2xl text-xs sm:text-sm leading-relaxed transition-all">
+                    </div>
+                `;
+
+                quizListContainer.appendChild(questionBlock);
+            });
+
+            // Reset Score
+            document.getElementById('score-text').innerText = `0 / ${generatedData.quiz.length}`;
+            document.getElementById('percent-text').innerText = `0%`;
+        }
+
+        // Quiz Selection Handler
+        function selectOption(qIdx, optionVal) {
+            userAnswers[qIdx] = optionVal;
+        }
+
+        // Quiz Grading Logic
+        function gradeQuiz() {
+            if (!generatedData || !generatedData.quiz) return;
+
+            let correctCount = 0;
+            const total = generatedData.quiz.length;
+
+            generatedData.quiz.forEach((q, idx) => {
+                const userAns = userAnswers[idx];
+                const card = document.getElementById(`quiz-card-${idx}`);
+                const expBox = document.getElementById(`explanation-box-${idx}`);
+
+                expBox.classList.remove('hidden');
+
+                if (userAns === q.answer) {
+                    correctCount++;
+                    card.className = "bg-white dark:bg-slate-900 rounded-3xl border-2 border-emerald-500/80 dark:border-emerald-500/80 p-6 sm:p-8 shadow-sm space-y-4 transition-all duration-300";
+                    expBox.className = "mt-4 p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/50 text-emerald-900 dark:text-emerald-200 text-xs sm:text-sm space-y-1";
+                    expBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
+                            <span>✅ 정답입니다!</span>
+                        </div>
+                        <p class="text-slate-600 dark:text-slate-300 mt-1">${q.explanation}</p>
+                    `;
+                } else {
+                    card.className = "bg-white dark:bg-slate-900 rounded-3xl border-2 border-rose-500/80 dark:border-rose-500/80 p-6 sm:p-8 shadow-sm space-y-4 transition-all duration-300";
+                    expBox.className = "mt-4 p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/50 text-rose-900 dark:text-rose-200 text-xs sm:text-sm space-y-1";
+                    expBox.innerHTML = `
+                        <div class="font-bold flex items-center gap-1.5 text-rose-700 dark:text-rose-400">
+                            <span>❌ 오답입니다.</span>
+                            <span class="text-slate-600 dark:text-slate-300 font-normal ml-2">(정답: <strong>${q.answer}</strong>)</span>
+                        </div>
+                        <p class="text-slate-600 dark:text-slate-300 mt-1">${q.explanation}</p>
+                    `;
+                }
+            });
+
+            const percent = Math.round((correctCount / total) * 100);
+            document.getElementById('score-text').innerText = `${correctCount} / ${total}`;
+            document.getElementById('percent-text').innerText = `${percent}%`;
+
+            // Confetti on good score
+            if (percent >= 70 && typeof confetti === 'function') {
+                confetti({
+                    particleCount: 80,
+                    spread: 70,
+                    origin: { y: 0.6 }
+                });
+            }
+
+            document.getElementById('quiz-score-card').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Tab Switcher
+        function switchTab(tab) {
+            const summaryBtn = document.getElementById('tab-summary-btn');
+            const quizBtn = document.getElementById('tab-quiz-btn');
+            const summaryContent = document.getElementById('tab-summary-content');
+            const quizContent = document.getElementById('tab-quiz-content');
+
+            if (tab === 'summary') {
+                summaryBtn.className = "px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center gap-2 bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm";
+                quizBtn.className = "px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white";
+                summaryContent.classList.remove('hidden');
+                quizContent.classList.add('hidden');
+            } else {
+                quizBtn.className = "px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center gap-2 bg-white dark:bg-slate-800 text-brand-600 dark:text-brand-400 shadow-sm";
+                summaryBtn.className = "px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white";
+                quizContent.classList.remove('hidden');
+                summaryContent.classList.add('hidden');
+            }
+        }
+
+        // Utility: Copy Summary to Clipboard
+        function copySummary() {
+            if (!generatedData || !generatedData.summary) return;
+            const textToCopy = generatedData.summary;
+
+            // Using standard document.execCommand fallback for iframe safety
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+
+            const btn = document.getElementById('copy-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<span>✅ 복사 완료!</span>`;
+            setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+        }
+
+        // Utility: Download Markdown/Text File
+        function downloadMarkdown() {
+            if (!generatedData) return;
+            let fileContent = `# ${pdfMeta.name} - 교안 AI 요약 및 퀴즈 노트\n\n`;
+            fileContent += `## 📚 교안 핵심 요약\n${generatedData.summary}\n\n`;
+            fileContent += `---\n\n## 📝 예상 퀴즈 10문항\n\n`;
+
+            generatedData.quiz.forEach((q, idx) => {
+                fileContent += `Q${idx + 1}. ${q.question}\n`;
+                q.options.forEach((opt, oIdx) => {
+                    fileContent += `   ${oIdx + 1}) ${opt}\n`;
+                });
+                fileContent += `   [정답] ${q.answer}\n`;
+                fileContent += `   [해설] ${q.explanation}\n\n`;
+            });
+
+            const blob = new Blob([fileContent], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${pdfMeta.name.replace('.pdf', '')}_요약및퀴즈.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // Utility: HTML Escaping
+        function escapeHtml(text) {
+            return String(text)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
